@@ -105,7 +105,7 @@
 
     .ranking {
       position: absolute;
-      top: 20px;
+      top: 10px;
       left: 50%;
       transform: translateX(-50%);
       background: rgba(255,255,255,0.9);
@@ -156,6 +156,7 @@
       <p>名前を入力してスコアを登録</p>
       <input type="text" id="playerName" maxlength="12" placeholder="名前">
       <button id="submitScore">送信</button>
+      <button id="skipScore">スキップ</button> <!-- ← 追加 -->
     </div>
   </div>
 
@@ -295,6 +296,13 @@
 
         loadRanking();
       };
+        document.getElementById("skipScore").onclick = () => {
+            document.getElementById("nameInput").style.display = "none";
+            resetGame();
+            startGame();
+};
+
+
     }
 
     function spawnObstacle() {
