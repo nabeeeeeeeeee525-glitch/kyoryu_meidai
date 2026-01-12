@@ -2,14 +2,14 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <title>シンプル恐竜ゲーム</title>
-  <style>
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-    }
+  <title>めいだい恐竜ゲーム</title>
 
+  <!-- Firebase -->
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js"></script>
+
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
       background: #f5f5f5;
       font-family: system-ui, sans-serif;
@@ -50,9 +50,7 @@
 
     .obstacle {
       position: absolute;
-      bottom: 20px;
       width: 20px;
-      height: 40px;
       background: #777;
     }
 
@@ -79,49 +77,167 @@
       padding: 10px 16px;
       border-radius: 4px;
       border: 1px solid #aaa;
+      white-space: pre-line;
+    }
+
+    .jump-btn {
+      position: absolute;
+      bottom: 10px;
+      right: 10px;
+      padding: 10px 20px;
+      background: #333;
+      color: #fff;
+      border-radius: 6px;
+      font-size: 16px;
+      opacity: 0.8;
+      user-select: none;
+    }
+
+    .tweet-btn {
+      margin-top: 10px;
+      padding: 6px 12px;
+      background: #1d9bf0;
+      color: #fff;
+      border-radius: 4px;
+      display: inline-block;
+      font-size: 14px;
+    }
+
+    .ranking {
+      position: absolute;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(255,255,255,0.9);
+      padding: 10px 20px;
+      border-radius: 6px;
+      border: 1px solid #aaa;
+      text-align: center;
+      display: none;
+    }
+
+    .name-input {
+      position: absolute;
+      top: 60%;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(255,255,255,0.95);
+      padding: 10px 20px;
+      border-radius: 6px;
+      border: 1px solid #aaa;
+      text-align: center;
+      display: none;
     }
   </style>
 </head>
 <body>
+
   <div class="game-container" id="game">
     <div class="ground" id="ground"></div>
     <div class="dino" id="dino"></div>
+
     <div class="ui">
-      <div>スペースキー / 上矢印キーでジャンプ</div>
+      <div>スペース / 上矢印 / タップでジャンプ</div>
       <div>スコア: <span id="score">0</span></div>
     </div>
+
     <div class="message" id="message">
       スペースキーか上矢印キーでスタート
+    </div>
+
+    <div class="jump-btn" id="jumpBtn">ジャンプ</div>
+
+    <div class="ranking" id="ranking">
+      <h3>ランキング（上位5名）</h3>
+      <ol id="rankingList"></ol>
+    </div>
+
+    <div class="name-input" id="nameInput">
+      <p>名前を入力してスコアを登録</p>
+      <input type="text" id="playerName" maxlength="12" placeholder="名前">
+      <button id="submitScore">送信</button>
     </div>
   </div>
 
   <script>
+    /* ------------------------------
+       Firebase 初期化（書き換え必須）
+    ------------------------------ */
+    const firebaseConfig = {
+        apiKey: "AIzaSyDJaho67gL9NMw_bBdZwRHvFo5MyyDJZBI",
+        authDomain: "maydie-games.firebaseapp.com",
+        projectId: "maydie-games",
+        storageBucket: "maydie-games.firebasestorage.app",
+        messagingSenderId: "986020331720",
+        appId: "1:986020331720:web:c5f3f9fb1594db2758a5fd",
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+
+    /* ------------------------------
+       ゲーム変数
+    ------------------------------ */
     const game = document.getElementById('game');
     const dino = document.getElementById('dino');
     const scoreEl = document.getElementById('score');
     const messageEl = document.getElementById('message');
     const ground = document.getElementById('ground');
+    const jumpBtn = document.getElementById('jumpBtn');
 
     const gameWidth = 800;
-    const groundY = 20; // 地面からのオフセット
+    const groundY = 20;
 
-    // プレイヤー（恐竜）の状態
-    let dinoY = 0;             // 地面からの高さ
-    let dinoVY = 0;            // 垂直速度
-    const gravity = -0.7;      // 重力（毎フレーム）
-    const jumpVelocity = 12;   // ジャンプ初速
+    let dinoY = 0;
+    let dinoVY = 0;
+    const gravity = -0.7;
+    const jumpVelocity = 12;
     let isOnGround = true;
 
-    // ゲーム状態
     let obstacles = [];
     let lastTime = 0;
     let spawnTimer = 0;
-    let spawnInterval = 1500;  // 障害物の出現間隔（ミリ秒）
-    let speed = 6;             // 障害物の移動速度
+    let spawnInterval = 1000;
+    let speed = 6;
     let score = 0;
     let isRunning = false;
     let isGameOver = false;
 
+    let speedTimer = 0;
+
+    /* ------------------------------
+       Firestore ランキング処理
+    ------------------------------ */
+    async function saveScore(name, score) {
+      await db.collection("scores").add({
+        name,
+        score,
+        createdAt: Date.now()
+      });
+    }
+
+    async function loadRanking() {
+      const snap = await db.collection("scores")
+        .orderBy("score", "desc")
+        .limit(5)
+        .get();
+
+      const list = document.getElementById("rankingList");
+      list.innerHTML = "";
+
+      snap.forEach(doc => {
+        const data = doc.data();
+        const li = document.createElement("li");
+        li.textContent = `${data.name}：${data.score}`;
+        list.appendChild(li);
+      });
+
+      document.getElementById("ranking").style.display = "block";
+    }
+
+    /* ------------------------------
+       ゲームロジック
+    ------------------------------ */
     function resetGame() {
       obstacles.forEach(o => o.el.remove());
       obstacles = [];
@@ -130,12 +246,14 @@
       isOnGround = true;
       score = 0;
       speed = 6;
-      spawnInterval = 1500;
       spawnTimer = 0;
+      speedTimer = 0;
       scoreEl.textContent = '0';
       isGameOver = false;
-      messageEl.textContent = 'スペースキーか上矢印キーでスタート';
+
+      messageEl.innerHTML = "スペースキーか上矢印キーでスタート";
       messageEl.style.display = 'block';
+
       dino.style.bottom = (groundY + dinoY) + 'px';
     }
 
@@ -150,8 +268,33 @@
     function gameOver() {
       isRunning = false;
       isGameOver = true;
-      messageEl.textContent = 'ゲームオーバー\nスペースキーでリトライ';
+
+      const finalScore = Math.floor(score);
+
+      const tweetURL =
+        `https://twitter.com/intent/tweet?text=${encodeURIComponent(
+          `めいだい恐竜ゲームのスコアは${finalScore}でした！`
+        )}`;
+
+      messageEl.innerHTML =
+        `ゲームオーバー\nスコア: ${finalScore}\n\n` +
+        `<a class="tweet-btn" href="${tweetURL}" target="_blank">Xで共有</a>\n\n` +
+        `スペースキーでリトライ`;
+
       messageEl.style.display = 'block';
+
+      document.getElementById("nameInput").style.display = "block";
+
+      document.getElementById("submitScore").onclick = async () => {
+        const name = document.getElementById("playerName").value.trim();
+        if (name === "") return;
+
+        await saveScore(name, finalScore);
+
+        document.getElementById("nameInput").style.display = "none";
+
+        loadRanking();
+      };
     }
 
     function spawnObstacle() {
@@ -159,28 +302,48 @@
       el.className = 'obstacle';
       game.appendChild(el);
 
+      const type = Math.random();
+
+      let height = 40;
+      let bottom = groundY;
+
+      if (type < 0.33) {
+        height = 40;
+        bottom = groundY;
+      } else if (type < 0.66) {
+        height = 70;
+        bottom = groundY;
+      } else {
+        height = 30;
+        bottom = groundY + 80;
+      }
+
+      el.style.height = height + 'px';
+      el.style.bottom = bottom + 'px';
+
       const obstacle = {
         el,
-        x: gameWidth, // 右端から出現
+        x: gameWidth,
       };
       el.style.left = obstacle.x + 'px';
       obstacles.push(obstacle);
     }
 
     function update(delta) {
-      // deltaはミリ秒なので、簡易的にそのまま使う
-
-      // 地面スクロール（見た目だけ）
       const groundOffset = (performance.now() / 5) % gameWidth;
       ground.style.transform = `translateX(${-groundOffset}px)`;
 
-      // スコア & 難易度
       score += delta * 0.01;
       scoreEl.textContent = Math.floor(score);
-      speed = 6 + score * 0.02;             // スコアが上がるほど速く
-      spawnInterval = Math.max(600, 1500 - score * 2); // 最大で600msまで短く
 
-      // 恐竜のジャンプ物理
+      speedTimer += delta;
+      if (speedTimer >= 20000) {
+        speedTimer = 0;
+        speed *= 1.1;
+      }
+
+      spawnInterval = 600 + Math.random() * 900;
+
       dinoVY += gravity;
       dinoY += dinoVY;
       if (dinoY < 0) {
@@ -190,13 +353,11 @@
       }
       dino.style.bottom = (groundY + dinoY) + 'px';
 
-      // 障害物の更新
       obstacles.forEach(o => {
         o.x -= speed;
         o.el.style.left = o.x + 'px';
       });
 
-      // 画面外の障害物を削除
       obstacles = obstacles.filter(o => {
         if (o.x + 20 < 0) {
           o.el.remove();
@@ -205,14 +366,12 @@
         return true;
       });
 
-      // 新しい障害物の生成
       spawnTimer += delta;
       if (spawnTimer >= spawnInterval) {
         spawnTimer = 0;
         spawnObstacle();
       }
 
-      // 当たり判定
       const dinoRect = dino.getBoundingClientRect();
       for (const o of obstacles) {
         const r = o.el.getBoundingClientRect();
@@ -235,14 +394,11 @@
 
     function handleJump() {
       if (!isRunning && !isGameOver) {
-        // ゲーム開始前
         startGame();
       } else if (isGameOver) {
-        // リトライ
         resetGame();
         startGame();
       } else {
-        // 通常ジャンプ
         if (isOnGround) {
           dinoVY = jumpVelocity;
           isOnGround = false;
@@ -257,7 +413,8 @@
       }
     });
 
-    // 初期状態
+    jumpBtn.addEventListener('click', handleJump);
+
     resetGame();
   </script>
 </body>
