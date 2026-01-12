@@ -5,8 +5,8 @@
   <title>めいだい恐竜ゲーム</title>
 
   <!-- Firebase -->
-<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
 
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -14,9 +14,9 @@
       background: #f5f5f5;
       font-family: system-ui, sans-serif;
       display: flex;
-      justify-content: center;
+      flex-direction: column;
       align-items: center;
-      height: 100vh;
+      padding-top: 30px;
       user-select: none;
     }
 
@@ -103,13 +103,12 @@
       font-size: 14px;
     }
 
+    /* ▼ ランキングをゲーム枠の外に完全移動 */
     .ranking {
-      position: absolute;
-      top: 10px;
-      left: 50%;
-      transform: translateX(-50%);
-      background: rgba(255,255,255,0.9);
-      padding: 10px 20px;
+      margin-top: 20px;
+      width: 800px;
+      background: rgba(255,255,255,0.95);
+      padding: 15px 20px;
       border-radius: 6px;
       border: 1px solid #aaa;
       text-align: center;
@@ -147,30 +146,31 @@
 
     <div class="jump-btn" id="jumpBtn">ジャンプ</div>
 
-    <div class="ranking" id="ranking">
-      <h3>ランキング（上位5名）</h3>
-      <ol id="rankingList"></ol>
-    </div>
-
     <div class="name-input" id="nameInput">
       <p>名前を入力してスコアを登録</p>
       <input type="text" id="playerName" maxlength="12" placeholder="名前">
       <button id="submitScore">送信</button>
-      <button id="skipScore">スキップ</button> <!-- ← 追加 -->
+      <button id="skipScore">スキップ</button>
     </div>
+  </div>
+
+  <!-- ▼ ランキングはゲーム枠の外に表示 -->
+  <div class="ranking" id="ranking">
+    <h3>ランキング（上位5名）</h3>
+    <ol id="rankingList"></ol>
   </div>
 
   <script>
     /* ------------------------------
-       Firebase 初期化（書き換え必須）
+       Firebase 初期化
     ------------------------------ */
     const firebaseConfig = {
-        apiKey: "AIzaSyDJaho67gL9NMw_bBdZwRHvFo5MyyDJZBI",
-        authDomain: "maydie-games.firebaseapp.com",
-        projectId: "maydie-games",
-        storageBucket: "maydie-games.firebasestorage.app",
-        messagingSenderId: "986020331720",
-        appId: "1:986020331720:web:c5f3f9fb1594db2758a5fd",
+      apiKey: "AIzaSyDJaho67gL9NMw_bBdZwRHvFo5MyyDJZBI",
+      authDomain: "maydie-games.firebaseapp.com",
+      projectId: "maydie-games",
+      storageBucket: "maydie-games.appspot.com",
+      messagingSenderId: "986020331720",
+      appId: "1:986020331720:web:c5f3f9fb1594db2758a5fd",
     };
 
     firebase.initializeApp(firebaseConfig);
@@ -296,13 +296,12 @@
 
         loadRanking();
       };
-        document.getElementById("skipScore").onclick = () => {
-            document.getElementById("nameInput").style.display = "none";
-            resetGame();
-            startGame();
-};
 
-
+      document.getElementById("skipScore").onclick = () => {
+        document.getElementById("nameInput").style.display = "none";
+        resetGame();
+        startGame();
+      };
     }
 
     function spawnObstacle() {
