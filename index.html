@@ -403,15 +403,34 @@
       }
 
       const dinoRect = dino.getBoundingClientRect();
-      for (const o of obstacles) {
-        const r = o.el.getBoundingClientRect();
-        const overlapX = dinoRect.right > r.left && dinoRect.left < r.right;
-        const overlapY = dinoRect.bottom > r.top && dinoRect.top < r.bottom;
-        if (overlapX && overlapY) {
-          gameOver();
-          break;
-        }
-      }
+for (const o of obstacles) {
+  const r = o.el.getBoundingClientRect();
+
+  // 当たり判定をゆるくするための余白
+  const padding = 8; // ← 好きに調整（8〜14が気持ちいい）
+
+  const dinoHit = {
+    left: dinoRect.left + padding,
+    right: dinoRect.right - padding,
+    top: dinoRect.top + padding,
+    bottom: dinoRect.bottom - padding
+  };
+
+  const obsHit = {
+    left: r.left + padding,
+    right: r.right - padding,
+    top: r.top + padding,
+    bottom: r.bottom - padding
+  };
+
+  const overlapX = dinoHit.right > obsHit.left && dinoHit.left < obsHit.right;
+  const overlapY = dinoHit.bottom > obsHit.top && dinoHit.top < obsHit.bottom;
+
+  if (overlapX && overlapY) {
+    gameOver();
+    break;
+  }
+}
     }
 
     function loop(time) {
