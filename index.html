@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>シンプル恐竜ゲーム</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background: #f5f5f5;
+      font-family: system-ui, sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      user-select: none;
+    }
+
+    .game-container {
+      background: #ffffff;
+      border: 2px solid #555;
+      width: 800px;
+      height: 200px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .ground {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      width: 200%;
+      height: 4px;
+      background: #555;
+    }
+
+    .dino {
+      position: absolute;
+      left: 50px;
+      bottom: 20px;
+      width: 40px;
+      height: 40px;
+      background: #333;
+      border-radius: 4px;
+    }
+
+    .obstacle {
+      position: absolute;
+      bottom: 20px;
+      width: 20px;
+      height: 40px;
+      background: #777;
+    }
+
+    .ui {
+      position: absolute;
+      top: 8px;
+      left: 8px;
+      right: 8px;
+      display: flex;
+      justify-content: space-between;
+      font-size: 14px;
+      color: #333;
+    }
+
+    .message {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      text-align: center;
+      font-size: 16px;
+      color: #333;
+      background: rgba(255, 255, 255, 0.8);
+      padding: 10px 16px;
+      border-radius: 4px;
+      border: 1px solid #aaa;
+    }
+  </style>
+</head>
+<body>
+  <div class="game-container" id="game">
+    <div class="ground" id="ground"></div>
+    <div class="dino" id="dino"></div>
+    <div class="ui">
+      <div>スペースキー / 上矢印キーでジャンプ</div>
+      <div>スコア: <span id="score">0</span></div>
+    </div>
+    <div class="message" id="message">
+      スペースキーか上矢印キーでスタート
+    </div>
+  </div>
+
+  <script>
+    const game = document.getElementById('game');
+    const dino = document.getElementById('dino');
+    const scoreEl = document.getElementById('score');
+    const messageEl = document.getElementById('message');
+    const ground = document.getElementById('ground');
+
+    const gameWidth = 800;
+    const groundY = 20; // 地面からのオフセット
+
+    // プレイヤー（恐竜）の状態
+    let dinoY = 0;             // 地面からの高さ
+    let dinoVY = 0;            // 垂直速度
+    const gravity = -0.7;      // 重力（毎フレーム）
+    const jumpVelocity = 12;   // ジャンプ初速
+    let isOnGround = true;
+
+    // ゲーム状態
+    let obstacles = [];
+    let lastTime = 0;
+    let spawnTimer = 0;
+    let spawnInterval = 1500;  // 障害物の出現間隔（ミリ秒）
+    let speed = 6;             // 障害物の移動速度
+    let score = 0;
+    let isRunning = false;
+    let isGameOver = false;
+
+    function resetGame() {
+      obstacles.forEach(o => o.el.remove());
+      obstacles = [];
+      dinoY = 0;
+      dinoVY = 0;
+      isOnGround = true;
+      score = 0;
+      speed = 6;
+      spawnInterval = 1500;
+      spawnTimer = 0;
+      scoreEl.textContent = '0';
+      isGameOver = false;
+      messageEl.textContent = 'スペースキーか上矢印キーでスタート';
+      messageEl.style.display = 'block';
+      dino.style.bottom = (groundY + dinoY) + 'px';
+    }
+
+    function startGame() {
+      if (isRunning) return;
+      isRunning = true;
+      messageEl.style.display = 'none';
+      lastTime = performance.now();
+      requestAnimationFrame(loop);
+    }
+
+    function gameOver() {
+      isRunning = false;
+      isGameOver = true;
+      messageEl.textContent = 'ゲームオーバー\nスペースキーでリトライ';
+      messageEl.style.display = 'block';
+    }
+
+    function spawnObstacle() {
+      const el = document.createElement('div');
+      el.className = 'obstacle';
+      game.appendChild(el);
+
+      const obstacle = {
+        el,
+        x: gameWidth, // 右端から出現
+      };
+      el.style.left = obstacle.x + 'px';
+      obstacles.push(obstacle);
+    }
+
+    function update(delta) {
+      // deltaはミリ秒なので、簡易的にそのまま使う
+
+      // 地面スクロール（見た目だけ）
+      const groundOffset = (performance.now() / 5) % gameWidth;
+      ground.style.transform = `translateX(${-groundOffset}px)`;
+
+      // スコア & 難易度
+      score += delta * 0.01;
+      scoreEl.textContent = Math.floor(score);
+      speed = 6 + score * 0.02;             // スコアが上がるほど速く
+      spawnInterval = Math.max(600, 1500 - score * 2); // 最大で600msまで短く
+
+      // 恐竜のジャンプ物理
+      dinoVY += gravity;
+      dinoY += dinoVY;
+      if (dinoY < 0) {
+        dinoY = 0;
+        dinoVY = 0;
+        isOnGround = true;
+      }
+      dino.style.bottom = (groundY + dinoY) + 'px';
+
+      // 障害物の更新
+      obstacles.forEach(o => {
+        o.x -= speed;
+        o.el.style.left = o.x + 'px';
+      });
+
+      // 画面外の障害物を削除
+      obstacles = obstacles.filter(o => {
+        if (o.x + 20 < 0) {
+          o.el.remove();
+          return false;
+        }
+        return true;
+      });
+
+      // 新しい障害物の生成
+      spawnTimer += delta;
+      if (spawnTimer >= spawnInterval) {
+        spawnTimer = 0;
+        spawnObstacle();
+      }
+
+      // 当たり判定
+      const dinoRect = dino.getBoundingClientRect();
+      for (const o of obstacles) {
+        const r = o.el.getBoundingClientRect();
+        const overlapX = dinoRect.right > r.left && dinoRect.left < r.right;
+        const overlapY = dinoRect.bottom > r.top && dinoRect.top < r.bottom;
+        if (overlapX && overlapY) {
+          gameOver();
+          break;
+        }
+      }
+    }
+
+    function loop(time) {
+      if (!isRunning) return;
+      const delta = time - lastTime;
+      lastTime = time;
+      update(delta);
+      requestAnimationFrame(loop);
+    }
+
+    function handleJump() {
+      if (!isRunning && !isGameOver) {
+        // ゲーム開始前
+        startGame();
+      } else if (isGameOver) {
+        // リトライ
+        resetGame();
+        startGame();
+      } else {
+        // 通常ジャンプ
+        if (isOnGround) {
+          dinoVY = jumpVelocity;
+          isOnGround = false;
+        }
+      }
+    }
+
+    window.addEventListener('keydown', (e) => {
+      if (e.code === 'Space' || e.code === 'ArrowUp') {
+        e.preventDefault();
+        handleJump();
+      }
+    });
+
+    // 初期状態
+    resetGame();
+  </script>
+</body>
+</html>
