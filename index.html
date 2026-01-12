@@ -21,7 +21,9 @@
     }
 
     .game-container {
-      background: #ffffff;
+      background-image: url("image/bg.png"); /* ← 画像パス */
+      background-size: cover;          /* ← 枠にぴったり収める */
+      background-position: center;     /* ← 中央に配置 */
       border: 2px solid #555;
       width: 800px;
       height: 200px;
@@ -29,13 +31,14 @@
       overflow: hidden;
     }
 
+
     .ground {
       position: absolute;
       bottom: 0;
       left: 0;
       width: 200%;
       height: 4px;
-      background: #555;
+      background:#c47a3a;
     }
 
     .dino {
@@ -44,6 +47,7 @@
       bottom: 20px;
       width: 48px;
       height: 48px;
+      filter: drop-shadow(0 2px 2px rgba(0,0,0,0.3));
       background-image: url("image/dino.png"); /* ← 画像パス */
       background-size: contain;
       background-repeat: no-repeat;
@@ -421,13 +425,24 @@
         }
       }
     }
-
+    
     window.addEventListener('keydown', (e) => {
-      if (e.code === 'Space' || e.code === 'ArrowUp') {
-        e.preventDefault();
-        handleJump();
-      }
-    });
+  if (e.code === 'Space' || e.code === 'ArrowUp') {
+    e.preventDefault();
+
+    const nameInputVisible = document.getElementById("nameInput").style.display === "block";
+
+    if (nameInputVisible) {
+      // スコア登録画面が出てる → スキップ処理
+      document.getElementById("nameInput").style.display = "none";
+      resetGame();
+      startGame();
+    } else {
+      // 通常のジャンプ処理
+      handleJump();
+    }
+  }
+});
 
     jumpBtn.addEventListener('click', handleJump);
 
