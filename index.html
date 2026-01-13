@@ -214,7 +214,7 @@
     let dinoY = 0;
     let dinoVY = 0;
     const gravity = -0.7;
-    const jumpVelocity = 18;
+    const jumpVelocity = 10;
     let isOnGround = true;
 
     let obstacles = [];
@@ -366,6 +366,7 @@
       score += delta * 0.01;
       scoreEl.textContent = Math.floor(score);
 
+       // 5秒ごとに1.1倍速
       speedTimer += delta;
       if (speedTimer >= 5000) {
         speedTimer = 0;
@@ -407,7 +408,7 @@ for (const o of obstacles) {
   const r = o.el.getBoundingClientRect();
 
   // 当たり判定をゆるくするための余白
-  const padding = 12; // ← 好きに調整（数字が増えるほど緩くなる）
+  const padding = 11; // ← 好きに調整（数字が増えるほど緩くなる）
 
   const dinoHit = {
     left: dinoRect.left + padding,
