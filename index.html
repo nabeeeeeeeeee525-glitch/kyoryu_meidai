@@ -486,21 +486,21 @@
       }
     }
 
-    window.addEventListener('keydown', (e) => {
-      if (e.code === 'Space' || e.code === 'ArrowUp') {
-        e.preventDefault();
+window.addEventListener('keydown', (e) => {
+  if (e.code === 'Space' || e.code === 'ArrowUp') {
+    e.preventDefault();
 
-        const nameInputVisible = document.getElementById("nameInput").style.display === "block";
+    const nameInputVisible = document.getElementById("nameInput").style.display === "block";
 
-        if (nameInputVisible) {
-          document.getElementById("nameInput").style.display = "none";
-          resetGame();
-          startGame();
-        } else {
-          handleJump();
-        }
-      }
-    });
+    if (nameInputVisible) {
+      // ★ スコア登録画面が出ているときは何もしない（スキップしない）
+      return;
+    }
+
+    // 通常のジャンプ処理
+    handleJump();
+  }
+});
 
     jumpBtn.addEventListener('click', handleJump);
 
