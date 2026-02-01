@@ -1,17 +1,17 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-    <!-- OGP設定 -->
+  <meta charset="UTF-8">
+  <title>めいだい恐竜げーむ</title>
+
+  <!-- OGP設定 -->
   <meta property="og:title" content="めいだい恐竜ゲーム">
   <meta property="og:description" content="恐竜めいだいが迫る障害物めいだいを回避するゲーム。※PC推奨">
   <meta property="og:image" content="https://nabeeeeeeeeee525-glitch.github.io/kyoryu_meidai/image/samune.png">
   <meta property="og:url" content="https://nabeeeeeeeeee525-glitch.github.io/kyoryu_meidai/">
   <meta property="og:type" content="website">
 
-  <!-- Twitterカード -->
   <meta name="twitter:card" content="summary_large_image">
-  <meta charset="UTF-8">
-  <title>めいだい恐竜げーむ</title>
 
   <!-- Firebase -->
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
@@ -30,16 +30,15 @@
     }
 
     .game-container {
-      background-image: url("image/bg.png"); /* ← 画像パス */
-      background-size: cover;          /* ← 枠にぴったり収める */
-      background-position: center;     /* ← 中央に配置 */
+      background-image: url("image/bg.png");
+      background-size: cover;
+      background-position: center;
       border: 2px solid #555;
       width: 800px;
       height: 200px;
       position: relative;
       overflow: hidden;
     }
-
 
     .ground {
       position: absolute;
@@ -57,7 +56,7 @@
       width: 48px;
       height: 48px;
       filter: drop-shadow(0 2px 2px rgba(0,0,0,0.3));
-      background-image: url("image/dino.png"); /* ← 画像パス */
+      background-image: url("image/dino.png");
       background-size: contain;
       background-repeat: no-repeat;
       background-position: center;
@@ -67,12 +66,11 @@
       position: absolute;
       width: 48px;
       height: 48px;
-      background-image: url("image/obstacle.png"); /* ← 画像パス */
+      background-image: url("image/obstacle.png");
       background-size: cover;
       background-repeat: no-repeat;
       background-position: center;
     }
-
 
     .ui {
       position: absolute;
@@ -123,7 +121,6 @@
       font-size: 14px;
     }
 
-    /* ▼ ランキングをゲーム枠の外に完全移動 */
     .ranking {
       margin-top: 80px;
       width: 800px;
@@ -133,8 +130,6 @@
       border: 1px solid #aaa;
       text-align: center;
       display: none;
-      position: relative;      /* ← ゲーム枠と完全に独立 */
-      z-index: 1;              /* ← 上に重ならないように */
     }
 
     .name-input {
@@ -148,6 +143,13 @@
       border: 1px solid #aaa;
       text-align: center;
       display: none;
+    }
+
+    /* ▼ 音量スライダー */
+    .volume-box {
+      margin-top: 20px;
+      text-align: center;
+      font-size: 14px;
     }
   </style>
 </head>
@@ -176,9 +178,15 @@
     </div>
   </div>
 
-  <!-- ▼ ランキングはゲーム枠の外に表示 -->
+  <!-- ▼ 音量調整 -->
+  <div class="volume-box">
+    音量：
+    <input type="range" id="volumeControl" min="0" max="1" step="0.01" value="0.5">
+  </div>
+
+  <!-- ▼ ランキング -->
   <div class="ranking" id="ranking">
-    <h3>ランキング（上位5名）</h3>
+    <h3>ランキング（上位50名）</h3>
     <ol id="rankingList"></ol>
   </div>
 
@@ -197,6 +205,22 @@
 
     firebase.initializeApp(firebaseConfig);
     const db = firebase.firestore();
+
+    /* ------------------------------
+       音源読み込み
+    ------------------------------ */
+    const jumpSound = new Audio("sound/jump.mp3");
+    const gameOverSound = new Audio("sound/gameover.mp3");
+    const bgm = new Audio("sound/bgm.mp3");
+    bgm.loop = true;
+
+    const volumeControl = document.getElementById("volumeControl");
+    volumeControl.addEventListener("input", () => {
+      const v = volumeControl.value;
+      jumpSound.volume = v;
+      gameOverSound.volume = v;
+      bgm.volume = v;
+    });
 
     /* ------------------------------
        ゲーム変数
@@ -242,7 +266,7 @@
     async function loadRanking() {
       const snap = await db.collection("scores")
         .orderBy("score", "desc")
-        .limit(5)
+        .limit(50)
         .get();
 
       const list = document.getElementById("rankingList");
@@ -278,7 +302,7 @@
       messageEl.style.display = 'block';
 
       dino.style.bottom = (groundY + dinoY) + 'px';
-      loadRanking()
+      loadRanking();
     }
 
     function startGame() {
@@ -286,12 +310,18 @@
       isRunning = true;
       messageEl.style.display = 'none';
       lastTime = performance.now();
+      bgm.currentTime = 0;
+      bgm.play();
       requestAnimationFrame(loop);
     }
 
     function gameOver() {
       isRunning = false;
       isGameOver = true;
+
+      bgm.pause();
+      gameOverSound.currentTime = 0;
+      gameOverSound.play();
 
       const finalScore = Math.floor(score);
 
@@ -366,7 +396,6 @@
       score += delta * 0.01;
       scoreEl.textContent = Math.floor(score);
 
-       // 5秒ごとに1.1倍速
       speedTimer += delta;
       if (speedTimer >= 5000) {
         speedTimer = 0;
@@ -404,34 +433,33 @@
       }
 
       const dinoRect = dino.getBoundingClientRect();
-for (const o of obstacles) {
-  const r = o.el.getBoundingClientRect();
+      for (const o of obstacles) {
+        const r = o.el.getBoundingClientRect();
 
-  // 当たり判定をゆるくするための余白
-  const padding = 10; // ← 好きに調整（数字が増えるほど緩くなる）
+        const padding = 10;
 
-  const dinoHit = {
-    left: dinoRect.left + padding,
-    right: dinoRect.right - padding,
-    top: dinoRect.top + padding,
-    bottom: dinoRect.bottom - padding
-  };
+        const dinoHit = {
+          left: dinoRect.left + padding,
+          right: dinoRect.right - padding,
+          top: dinoRect.top + padding,
+          bottom: dinoRect.bottom - padding
+        };
 
-  const obsHit = {
-    left: r.left + padding,
-    right: r.right - padding,
-    top: r.top + padding,
-    bottom: r.bottom - padding
-  };
+        const obsHit = {
+          left: r.left + padding,
+          right: r.right - padding,
+          top: r.top + padding,
+          bottom: r.bottom - padding
+        };
 
-  const overlapX = dinoHit.right > obsHit.left && dinoHit.left < obsHit.right;
-  const overlapY = dinoHit.bottom > obsHit.top && dinoHit.top < obsHit.bottom;
+        const overlapX = dinoHit.right > obsHit.left && dinoHit.left < obsHit.right;
+        const overlapY = dinoHit.bottom > obsHit.top && dinoHit.top < obsHit.bottom;
 
-  if (overlapX && overlapY) {
-    gameOver();
-    break;
-  }
-}
+        if (overlapX && overlapY) {
+          gameOver();
+          break;
+        }
+      }
     }
 
     function loop(time) {
@@ -452,27 +480,27 @@ for (const o of obstacles) {
         if (isOnGround) {
           dinoVY = jumpVelocity;
           isOnGround = false;
+          jumpSound.currentTime = 0;
+          jumpSound.play();
         }
       }
     }
-    
+
     window.addEventListener('keydown', (e) => {
-  if (e.code === 'Space' || e.code === 'ArrowUp') {
-    e.preventDefault();
+      if (e.code === 'Space' || e.code === 'ArrowUp') {
+        e.preventDefault();
 
-    const nameInputVisible = document.getElementById("nameInput").style.display === "block";
+        const nameInputVisible = document.getElementById("nameInput").style.display === "block";
 
-    if (nameInputVisible) {
-      // スコア登録画面が出てる → スキップ処理
-      document.getElementById("nameInput").style.display = "none";
-      resetGame();
-      startGame();
-    } else {
-      // 通常のジャンプ処理
-      handleJump();
-    }
-  }
-});
+        if (nameInputVisible) {
+          document.getElementById("nameInput").style.display = "none";
+          resetGame();
+          startGame();
+        } else {
+          handleJump();
+        }
+      }
+    });
 
     jumpBtn.addEventListener('click', handleJump);
 
